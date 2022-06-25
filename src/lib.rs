@@ -29,12 +29,12 @@ mod types {
 pub mod configuration {
     use crate::RegConfig;
 
-    use diesel::backend::{Backend, RawValue};
+    use diesel::backend::RawValue;
     use diesel::deserialize::{self, FromSql};
+    use diesel::expression::AsExpression;
+    use diesel::serialize::ToSql;
     use diesel::serialize::{self, Output};
     use diesel::sql_types::Integer;
-    use diesel::serialize::ToSql;
-    use diesel::expression::AsExpression;
 
     #[derive(Debug, PartialEq, AsExpression)]
     #[diesel(sql_type = RegConfig)]
@@ -59,23 +59,22 @@ pub mod configuration {
         pub const TURKISH: Self = Self(12852);
     }
 
-    impl<DB> FromSql<RegConfig, DB> for TsConfiguration
-        where
-            DB: Backend,
-            i32: FromSql<Integer, DB>,
+    impl FromSql<RegConfig, diesel::pg::Pg> for TsConfiguration
+    where
+        i32: FromSql<Integer, diesel::pg::Pg>,
     {
-        fn from_sql(bytes: RawValue<'_, DB>) -> deserialize::Result<Self> {
+        fn from_sql(bytes: RawValue<'_, diesel::pg::Pg>) -> deserialize::Result<Self> {
             i32::from_sql(bytes).map(|oid| TsConfiguration(oid as u32))
         }
     }
 
-    impl<DB> ToSql<RegConfig, DB> for TsConfiguration
-        where
-            DB: Backend,
-            u32: ToSql<Integer, DB>,
+    impl ToSql<RegConfig, diesel::pg::Pg> for TsConfiguration
+    where
+        i32: ToSql<Integer, diesel::pg::Pg>,
     {
-        fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
-            self.0.to_sql(out)
+        fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> serialize::Result {
+            let v = self.0 as i32;
+            <i32 as ToSql<Integer, diesel::pg::Pg>>::to_sql(&v, &mut out.reborrow())
         }
     }
 }
